@@ -1,7 +1,7 @@
 
 # coding: utf-8
 
-# In[1]:
+
 
 import tensorflow as tf
 from my_tf_layer import *
@@ -11,91 +11,161 @@ import numpy as np
 from time import gmtime,strftime
 
 
-seed = 15  # random seed
-random.seed(seed)
+class convNet():
+    def __init__(self):
+        self.nchannel = 1
+        self.crop_size = 512
+        self.batch = 1
 
-nchannel = 1
-crop_size = 512
-batch = 1
+        self.data = tf.placeholder(tf.float32, [self.batch, self.crop_size,self.crop_size,self.nchannel])
+        self.label =  tf.placeholder(tf.int32, [self.batch, self.crop_size,self.crop_size])
+        #self.expected = tf.expand_dims(self.label, -1)
+        self.expected = self.label
+        self.device = '/gpu:0'
+        self.nclass = 2
 
-data = tf.placeholder(tf.float32, [batch, crop_size,crop_size,nchannel])
-x = tf.placeholder(tf.float32, [batch, crop_size,crop_size,nchannel])
-label =  tf.placeholder(tf.int32, [1, crop_size,crop_size])
-expected = tf.expand_dims(label, -1)
-device = '/gpu:0'
+        self.build_graph()
 
-out_size = 64
-phase_train = True
-shape = x.get_shape().as_list()
-n_out = shape[3]
-beta = tf.Variable(tf.constant(0.0, shape=[n_out]),
-                                name='beta', trainable=True)
-gamma = tf.Variable(tf.constant(1.0, shape=[n_out]),
-                                name='gamma', trainable=True)
-batch_mean, batch_var = tf.nn.moments(x, [0,1,2], name='moments')
+    def build_graph(self):
+        out_size = 64
+        self.conv1_1 = conv2d_layer(self.data,3,out_size,name = 'conv1_1')
+        self.conv1_1_bn = batch_norm_layer(self.conv1_1,name = 'conv1_1_bn')
+
+        out_size = 64
+        self.conv1_2 = conv2d_layer(self.conv1_1_bn,3,out_size,name = 'conv1_2')
+        self.conv1_2_bn = batch_norm_layer(self.conv1_2,name = 'conv1_2_bn')
+
+        out_size = 128
+        self.conv1_3 = conv2d_layer(self.conv1_2_bn,3,out_size,name = 'conv1_3')
+        self.conv1_3_bn = batch_norm_layer(self.conv1_2,name = 'conv1_3_bn')
+
+        # pool1
+        self.pool1 = pool_layer(self.conv1_3_bn,name='pool1')
+
+        out_size = 64
+        self.conv2_1 = conv2d_layer(self.pool1,3,out_size,name = 'conv2_1')
+        self.conv2_1_bn = batch_norm_layer(self.conv2_1,name = 'conv2_1_bn')
+
+        out_size = 128
+        self.conv2_2 = conv2d_layer(self.conv2_1_bn,3,out_size,name = 'conv2_2')
+        self.conv2_2_bn = batch_norm_layer(self.conv2_2,name = 'conv2_2_bn')
+
+        out_size = 128
+        self.conv2_3 = conv2d_layer(self.conv2_2_bn,3,out_size,name = 'conv2_3')
+        self.conv2_3_bn = batch_norm_layer(self.conv2_3,name = 'conv2_3_bn')
+
+        self.pool2 = pool_layer(self.conv2_3_bn,name='pool2')
+
+        out_size = 64
+        self.conv3_1 = conv2d_layer(self.pool2,3,out_size,name = 'conv3_1')
+        self.conv3_1_bn = batch_norm_layer(self.conv3_1,name = 'conv3_1_bn')
+
+        out_size = 128
+        self.conv3_2 = conv2d_layer(self.conv3_1_bn,3,out_size,name = 'conv3_2')
+        self.conv3_2_bn = batch_norm_layer(self.conv3_2,name = 'conv3_2_bn')
+
+        out_size = 128
+        self.conv3_3 = conv2d_layer(self.conv3_2_bn,3,out_size,name = 'conv3_3')
+        self.conv3_3_bn = batch_norm_layer(self.conv3_3,name = 'conv3_3_bn')
+
+        # un pooling layer
+        self.un_pool2 = up_pool_deconv_layer(self.conv3_3_bn,2,name = 'unpool2')
+
+        out_size = 64
+        self.conv4_1 = conv2d_layer(self.un_pool2,3,out_size,name = 'conv4_1')
+        self.conv4_1_bn = batch_norm_layer(self.conv4_1,name = 'conv4_1_bn')
+
+        out_size = 128
+        self.conv4_2 = conv2d_layer(self.conv4_1_bn,3,out_size,name = 'conv4_2')
+        self.conv4_2_bn = batch_norm_layer(self.conv4_2,name = 'conv4_2_bn')
+
+        out_size = 128
+        self.conv4_3 = conv2d_layer(self.conv4_2_bn,3,out_size,name = 'conv4_3')
+        self.conv4_3_bn = batch_norm_layer(self.conv4_3,name = 'conv4_3_bn')
+
+        self.un_pool1 = up_pool_deconv_layer(self.conv4_3_bn,2,name='unpool1')
+
+        out_size = 64
+        self.conv5_1 = conv2d_layer(self.un_pool1,3,out_size,name = 'conv5_1')
+        self.conv5_1_bn = batch_norm_layer(self.conv5_1,name = 'conv5_1_bn')
+
+        out_size = 128
+        self.conv5_2 = conv2d_layer(self.conv5_1_bn,3,out_size,name = 'conv5_2')
+        self.conv5_2_bn = batch_norm_layer(self.conv5_2,name = 'conv5_2_bn')
+
+        out_size = 128
+        self.conv5_3 = conv2d_layer(self.conv5_2_bn,3,out_size,name = 'conv5_3')
+        self.conv5_3_bn = batch_norm_layer(self.conv5_3,name = 'conv5_3_bn')
+
+        out_size = 64
+        self.conv5_4 = conv2d_layer(self.conv5_3_bn,3,out_size,name = 'conv5_4')
+        self.conv5_4_bn = batch_norm_layer(self.conv5_4,name = 'conv5_4_bn')
+
+        self.score = conv2d_layer(self.conv5_4_bn,1,self.nclass,name='score')
+
+        self.logits = tf.reshape(self.score,(-1,2))
+        print 'loghts size: ',self.logits.get_shape()
 
 
-ema = tf.train.ExponentialMovingAverage(decay=0.5)
+        self.cross_entropy = tf.nn.sparse_softmax_cross_entropy_with_logits(self.logits, tf.reshape(self.expected, [-1]), name='x_entropy')
+        print 'cross entropy size: ',self.cross_entropy.get_shape()
+        self.loss = tf.reduce_mean(self.cross_entropy)
+
+        rate = 0.0001
+        self.optimize = tf.train.AdamOptimizer(rate,0.5,name = 'optimize').minimize(self.loss)
+        #optimize = tf.train.GradientDescentOptimizer(learning_rate=0.005).minimize(loss)
+        th = 0.5
+        self.prediction = tf.argmax(tf.reshape(tf.nn.softmax(self.logits), tf.shape(self.score)), dimension=3)
+        print 'prediction size: ',self.prediction.get_shape()
+        self.accuracy = tf.reduce_mean(tf.cast(tf.equal(tf.cast(self.prediction,tf.int32),self.expected),tf.float32))
+
+        print 'Graph build done'
 
 
-def mean_var_with_update():
-    ema_apply_op = ema.apply([batch_mean, batch_var])
-    with tf.control_dependencies([ema_apply_op]):
-        return tf.identity(batch_mean), tf.identity(batch_var)
-
-#phase_train
-bb = tf.constant(True)
-
-mean, var = tf.cond( bb,
-                    mean_var_with_update,
-                    lambda: (ema.average(batch_mean), ema.average(batch_var)))
-                    
-'''
-normed = tf.nn.batch_normalization(x, mean, var, beta, gamma, 1e-3,name = "normed")
-'''
-
-# enable multiple device
-#sess = tf.Session(config=tf.ConfigProto(log_device_placement=True))
-sess = tf.Session()
-init = tf.global_variables_initializer()
-sess.run(init)
-#sess.run(tf.global_variables_initializer())
-    
-iter = 0
-idx = random.randint(0, len(train_data)-1)
-batch_xs = read_image(train_data[idx][0],size=crop_size)
-batch_ys = read_label(train_data[idx][1],size=crop_size)
-sess.run(optimize,feed_dict = {data: batch_xs,label: batch_ys})
-print 'step{} -- accuracy is {}'.format(iter,sess.run(accuracy,feed_dict = {data: batch_xs,label: batch_ys}))
+    def init_session(self,model = None):
+        '''
+        If a model file is specified, will restore the model
+        '''
+        if model == None:
+            self.sess = tf.Session(config=tf.ConfigProto(log_device_placement=True))
+            init = tf.global_variables_initializer()
+            self.sess.run(init)
+        else:
+            self.sess = tf.Session()
+            saver = tf.train.Saver()
+            saver.restore(self.sess,model)
+            print "Model: {} restored".format(model)
 
 
-# In[4]:
+    def feed_data(self,data,label,info=False):
+        self.sess.run(self.optimize,feed_dict = {self.data:data,self.label:label})
+        if info:
+            return self.sess.run(self.accuracy,feed_dict = {self.data:data,self.label:label})
 
-for iter in range(50000):
-    idx = random.randint(0, len(train_data)-1)
-    rotate = random.randint(0,360)
-    batch_xs = read_image(train_data[idx][0],rotate = rotate,size=crop_size)
-    batch_ys = read_label(train_data[idx][1],rotate = rotate,size=crop_size)
-    sess.run(optimize,feed_dict = {data: batch_xs,label: batch_ys})
-    if (iter+1)%5 == 0:
-        print '{}-step{} -- accuracy is {}'.format(iter,sess.run(strftime("%a, %d %b %Y %H:%M:%S", gmtime()),
-                                                                 accuracy,
-                                                                 feed_dict = {data: batch_xs,label: batch_ys}))
-        strftime("checkpoint/%H-%M-%S.ckpt",gmtime())
+    def save_checkpoint(self,path):
+        save_path = path
         saver = tf.train.Saver()
-        save_path = saver.save(sess,'checkpoint/tmp.ckpt')
-        print("Model saved in file: %s" % save_path)
-        ss = score.eval(session = sess,feed_dict = {data: batch_xs,label: batch_ys})
-        ss2 = ss.reshape(-1,crop_size,crop_size)
-        show_image(ss2[0])
+        save_path = saver.save(self.sess,save_path)
+        print 'Model saved in: ',save_path
 
 
-ss = score.eval(session = sess,feed_dict = {data: batch_xs,label: batch_ys})
-ss2 = ss.reshape(-1,512,512)
-truth = batch_ys.reshape(512,512)
-show_image(ss2[0],truth)
+    def restore(self,model):
+        self.sess = tf.Session()
+        saver = tf.train.Saver()
+        md = saver.restore(self.sess,model)
+        print "Model: {} restored".format(md)
 
 
+    def predict(self,data):
+        return self.sess.run(self.prediction,feed_dict = {self.data:data})
 
 
+    def list_operations(self):
+        #[n.name for n in tf.get_default_graph().as_graph_def().node]
+        gf = tf.get_default_graph()
+        [n.name for n in gf.get_operations()]
 
+
+    def get_operation(self,name):
+        op = tf.get_default_graph().get_operation_by_name(name)
+        op.values()
