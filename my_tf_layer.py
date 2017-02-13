@@ -34,7 +34,7 @@ def conv2d_layer(x, kernel_size,out_channel, device = '/gpu:0',stride = 1,name =
             print 'layer: {}  size: {}'.format(name, ret.get_shape())
             return ret
 
-def batch_norm_layer(x,device = '/cpu:0', phase_train = True ,name = 'Batchnorm'):
+def batch_norm_layer(x,device = '/gpu:0', phase_train = True ,name = 'Batchnorm'):
     '''
     Batch normalization
     reference: https://gist.github.com/tomokishii/0ce3bdac1588b5cca9fa5fbdf6e1c412 
@@ -240,7 +240,11 @@ def read_img_raw(im_name,size = 512,rotate = 0,type=np.float32):
     in_ = np.array(im, dtype=type)
     return in_
 
-def read_image(img_name,rotate = 0,size = 512):
+def read_image_feed(img_name,rotate = 0,size = 512):
+    '''
+    Read image to feed the network
+    expand dims in 0 and 3
+    '''
     batch_xs = read_img_raw(img_name,size = size,rotate = rotate,type=np.float32)
     batch_xs = np.expand_dims(batch_xs,axis=0)
     batch_xs = np.expand_dims(batch_xs,axis=3)

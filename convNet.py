@@ -28,7 +28,7 @@ class convNet():
 
     def build_graph(self):
         out_size = 64
-        self.conv1_1 = conv2d_layer(self.data,3,out_size,name = 'conv1_1')
+        self.conv1_1 = conv2d_layer(self.data,5,out_size,name = 'conv1_1')
         self.conv1_1_bn = batch_norm_layer(self.conv1_1,name = 'conv1_1_bn')
 
         out_size = 64
@@ -111,8 +111,11 @@ class convNet():
         print 'cross entropy size: ',self.cross_entropy.get_shape()
         self.loss = tf.reduce_mean(self.cross_entropy)
 
-        rate = 0.0001
-        self.optimize = tf.train.AdamOptimizer(rate,0.5,name = 'optimize').minimize(self.loss)
+        global_step = tf.Variable(0, trainable=False)
+        starter_learning_rate = 0.001
+        learning_rate = tf.train.exponential_decay(starter_learning_rate, global_step,
+                                           1000, 0.5, staircase=True)
+        self.optimize = tf.train.AdamOptimizer(learning_rate,0.9,name = 'optimize').minimize(self.loss)
         #optimize = tf.train.GradientDescentOptimizer(learning_rate=0.005).minimize(loss)
         th = 0.5
         self.prediction = tf.argmax(tf.reshape(tf.nn.softmax(self.logits), tf.shape(self.score)), dimension=3)
@@ -140,7 +143,7 @@ class convNet():
     def feed_data(self,data,label,info=False):
         self.sess.run(self.optimize,feed_dict = {self.data:data,self.label:label})
         if info:
-            return self.sess.run(self.accuracy,feed_dict = {self.data:data,self.label:label})
+            print "Accuracy is",self.sess.run(self.accuracy,feed_dict = {self.data:data,self.label:label})
 
     def save_checkpoint(self,path):
         save_path = path
@@ -158,7 +161,9 @@ class convNet():
 
     def predict(self,data):
         return self.sess.run(self.prediction,feed_dict = {self.data:data})
-
+    
+    def check_layer(self,layer,data):
+        return self.sess.run(layer,feed_dict = {self.data:data})
 
     def list_operations(self):
         #[n.name for n in tf.get_default_graph().as_graph_def().node]
